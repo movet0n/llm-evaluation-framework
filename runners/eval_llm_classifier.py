@@ -96,7 +96,8 @@ def main():
 
     if n_runs > 1:
         print(f"Stability mode: {n_runs} runs per sample (agreement threshold={agreement_threshold:.0%})\n")
-        classify_fn = lambda text: classify_with_llm(client, text, model=model)
+        stability_temp = float(os.getenv("EVAL_STABILITY_TEMPERATURE", "0.7"))
+        classify_fn = lambda text: classify_with_llm(client, text, model=model, temperature=stability_temp)
         stability = run_stability_analysis(
             DATASET,
             classify_fn,

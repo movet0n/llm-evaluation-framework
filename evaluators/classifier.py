@@ -6,15 +6,17 @@ from openai import OpenAI
 from datasets.toxicity_v1 import LABELS
 
 
-def classify_with_llm(client: OpenAI, text: str, model: str) -> Tuple[str, float]:
+def classify_with_llm(client: OpenAI, text: str, model: str, temperature: float = 0.0) -> Tuple[str, float]:
     """
     Returns (label, confidence). Uses Chat Completions API with JSON mode,
     compatible with both OpenAI and Ollama.
+    Temperature=0 for single deterministic evals.
+    Temperature>0 (e.g. 0.7) for stability analysis to surface variability.
     """
 
     resp = client.chat.completions.create(
         model=model,
-        temperature=0,
+        temperature=temperature,
         messages=[
             {
                 "role": "system",
@@ -33,4 +35,4 @@ def classify_with_llm(client: OpenAI, text: str, model: str) -> Tuple[str, float
     label = obj.get("label")
     if label not in LABELS:
         raise ValueError(f"Unexpected model response: {obj}")
-    return label, float(obj.get("confidence", 0.0))
+    return label, float(obj.get("confidence") or 0.0)
