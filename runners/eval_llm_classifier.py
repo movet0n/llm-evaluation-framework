@@ -1,7 +1,6 @@
 import json
 import os
 from datetime import datetime, timezone
-from functools import partial
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -17,7 +16,9 @@ load_dotenv()
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
 
 
-def save_report(model: str, predictions: list, m, stability: list | None = None, agreement_threshold: float = 0.8) -> Path:
+def save_report(
+    model: str, predictions: list, m, stability: list | None = None, agreement_threshold: float = 0.8
+) -> Path:
     REPORTS_DIR.mkdir(exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path = REPORTS_DIR / f"{timestamp}_{model.replace('/', '-')}.json"
@@ -73,9 +74,16 @@ def main():
     stability = None
 
     if n_runs > 1:
-        print(f"Running stability analysis: {n_runs} runs per sample (agreement threshold={agreement_threshold:.0%})\n")
-        classify_fn = partial(classify_with_llm, client, model=model)
-        stability = run_stability_analysis(DATASET, classify_fn, n_runs=n_runs, agreement_threshold=agreement_threshold)
+        print(
+            f"Running stability analysis: {n_runs} runs per sample (agreement threshold={agreement_threshold:.0%})\n"
+        )
+        classify_fn = lambda text: classify_with_llm(client, text, model=model)
+        stability = run_stability_analysis(
+            DATASET,
+            classify_fn,
+            n_runs=n_runs,
+            agreement_threshold=agreement_threshold,
+        )
 
         predictions = []
         for s in stability:
@@ -84,10 +92,10 @@ def main():
             predictions.append(out)
             flag = " *** UNSTABLE" if s.unstable else ""
             print(
-                f'{s.id}: gold={s.gold} majority={s.majority_label} '
-                f'agreement={s.agreement_rate:.0%} '
-                f'mean_conf={s.mean_confidence:.2f} std={s.std_confidence:.2f} '
-                f'runs={s.predictions}{flag}'
+                f"{s.id}: gold={s.gold} majority={s.majority_label} "
+                f"agreement={s.agreement_rate:.0%} "
+                f"mean_conf={s.mean_confidence:.2f} std={s.std_confidence:.2f} "
+                f"runs={s.predictions}{flag}"
             )
     else:
         predictions = []
@@ -114,7 +122,9 @@ def main():
         print(f"Unstable samples    : {len(unstable)}/{len(stability)}")
         for s in unstable:
             print(f"  [{s.id}] {s.text[:60]}")
-            print(f"        agreement={s.agreement_rate:.0%}  mean_conf={s.mean_confidence:.2f}  std={s.std_confidence:.2f}  runs={s.predictions}")
+            print(
+                f"        agreement={s.agreement_rate:.0%}  mean_conf={s.mean_confidence:.2f}  std={s.std_confidence:.2f}  runs={s.predictions}"
+            )
 
     report_path = save_report(model, predictions, m, stability, agreement_threshold)
     print(f"\nReport saved: {report_path}")

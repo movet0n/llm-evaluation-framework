@@ -30,11 +30,7 @@ def classify_with_llm(client: OpenAI, text: str, model: str) -> Tuple[str, float
     )
 
     obj = json.loads(resp.choices[0].message.content)
-
-    # Local models sometimes use different key names — normalise them.
-    label = obj.get("label") or obj.get("classification") or obj.get("result") or obj.get("category")
+    label = obj.get("label")
     if label not in LABELS:
-        raise ValueError(f"Unexpected response from model: {obj}")
-
-    conf = float(obj.get("confidence") or obj.get("score") or obj.get("confidence_score") or 0.0)
-    return label, conf
+        raise ValueError(f"Unexpected model response: {obj}")
+    return label, float(obj.get("confidence", 0.0))
