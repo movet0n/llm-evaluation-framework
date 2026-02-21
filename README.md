@@ -34,6 +34,16 @@ Twenty examples, split into tiers by how hard they are:
 
 The tiers matter because a model that only catches obvious toxicity isn't actually useful. The borderline tier is where models tend to fail, and where the real work is.
 
+## A note on confidence scores
+
+Each prediction includes a confidence score — the model rating its own certainty on a scale of 0 to 1. It sounds useful. It's more complicated than that.
+
+The number isn't coming from inside the model's reasoning process. It's generated the same way any other word is — the model predicts what number makes sense to write there, based on context. We're essentially asking it to self-assess, and then trusting its answer.
+
+For strong models at low temperature, this correlates reasonably with correctness. For local models, especially when temperature is turned up, it's mostly noise — you'll see the label stay completely stable across runs while the confidence number swings from 0.15 to 0.95 and back. The label is the real signal. The confidence score is the model's best guess at what a confident-sounding number looks like.
+
+The real confidence a model has lives in something called logprobs — the actual probability it assigned to each token at generation time. That's a true internal measurement. But it requires lower-level API access and is harder to work with, so most evaluation pipelines, including this one, use prompted self-assessment instead and take the numbers with appropriate skepticism.
+
 ## Stability analysis
 
 LLMs are probabilistic. Run the same text through the same model twice and you might get different answers — especially on ambiguous cases. The stability analysis runs each sample multiple times and measures how often the model changes its mind.

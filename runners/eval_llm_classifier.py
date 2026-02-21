@@ -96,7 +96,7 @@ def main():
 
     if n_runs > 1:
         print(f"Stability mode: {n_runs} runs per sample (agreement threshold={agreement_threshold:.0%})\n")
-        stability_temp = float(os.getenv("EVAL_STABILITY_TEMPERATURE", "0.7"))
+        stability_temp = float(os.getenv("EVAL_STABILITY_TEMPERATURE", "0.0"))
         classify_fn = lambda text: classify_with_llm(client, text, model=model, temperature=stability_temp)
         stability = run_stability_analysis(
             DATASET,
@@ -112,7 +112,10 @@ def main():
             predictions.append(out)
             unstable_flag = "  [UNSTABLE]" if s.unstable else ""
             print_row(
-                s.id, row.get("tier", ""), s.gold, s.majority_label,
+                s.id,
+                row.get("tier", ""),
+                s.gold,
+                s.majority_label,
                 f"agreement={s.agreement_rate:.0%}  mean_conf={s.mean_confidence:.2f}  std={s.std_confidence:.2f}",
                 extra=unstable_flag,
             )
@@ -156,7 +159,7 @@ def main():
         print(f"  Unstable samples    : {len(unstable)}/{len(stability)}")
         for s in unstable:
             print(f"  [{s.id:>2}]  agreement={s.agreement_rate:.0%}  runs={s.predictions}")
-            print(f"       \"{s.text[:70]}\"")
+            print(f'       "{s.text[:70]}"')
 
     report_path = save_report(model, predictions, m, stability, agreement_threshold)
     print(f"\nReport saved: {report_path}")
