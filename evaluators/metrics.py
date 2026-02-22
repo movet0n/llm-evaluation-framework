@@ -17,17 +17,17 @@ class Metrics:
     @property
     def precision(self) -> float:
         denom = self.tp + self.fp
-        return self.tp / denom if denom else 0.0
+        return self.tp / denom if denom else float("nan")
 
     @property
     def recall(self) -> float:
         denom = self.tp + self.fn
-        return self.tp / denom if denom else 0.0
+        return self.tp / denom if denom else float("nan")
 
     @property
     def f1(self) -> float:
         p, r = self.precision, self.recall
-        return (2 * p * r / (p + r)) if (p + r) else 0.0
+        return (2 * p * r / (p + r)) if (p + r) else float("nan")
 
 
 def confusion_from_predictions(rows: List[Dict], positive_label: str = "toxic") -> Metrics:
