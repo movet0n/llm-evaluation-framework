@@ -58,10 +58,17 @@ def run_stability_analysis(
                 unstable=agreement_rate < agreement_threshold,
             )
         )
+
     return results
 
 
-def overall_instability(stability: list[SampleStability], agreement_threshold: float = 0.8) -> float:
-    """Returns % of samples with agreement_rate below threshold."""
+def overall_instability(
+    stability: list[SampleStability],
+    agreement_threshold: float = 0.8,
+) -> float:
+    """
+    Returns % of samples with agreement_rate below threshold.
+    """
+
     unstable = sum(1 for s in stability if s.agreement_rate < agreement_threshold)
     return round(unstable / len(stability), 4) if stability else 0.0

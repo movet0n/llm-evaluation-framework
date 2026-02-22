@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,10 @@ load_dotenv()
 
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
 TIER_ORDER = ["clear_toxic", "mostly_toxic", "borderline", "mostly_safe", "clear_safe"]
+
+
+def _handle_matrix_nan(value: float, round_precision: int) -> float | None:
+    return None if math.isnan(value) else round(value, round_precision)
 
 
 def outcome(gold: str, pred: str, positive: str = "toxic") -> str:
@@ -44,7 +49,7 @@ def print_row(id: str, tier: str, gold: str, pred: str, conf: str, extra: str = 
 def print_tier_breakdown(predictions: list) -> dict:
     print("\n--- Per-tier breakdown ---")
     print(
-        f"  {'tier':<14}  {'n':>2}  {'TP':>2}  {'FP':>2}  {'TN':>2}  {'FN':>2}  {'recall':>6}  {'precision':>9}  {'f1':>5}"
+        f"  {'tier':<14}  {'n':>2}  {'TP':>2}  {'FP':>2}  {'TN':>2}  {'FN':>2}  {'recall':>6}  {'precision':>9}  {'f1':>5}  {'specificity':>11}  {'false positive rate':>19}"
     )
     tier_results = {}
 
@@ -54,27 +59,30 @@ def print_tier_breakdown(predictions: list) -> dict:
         if not rows:
             continue
 
-        m = confusion_from_predictions(rows, positive_label="toxic")
-        tier_results[tier] = {
+        matrix = confusion_from_predictions(rows, positive_label="toxic")  # Only counting happens here
+        tier_results[tier] = {  # Now the properties formula runs
             "n": len(rows),
-            "tp": m.tp,
-            "fp": m.fp,
-            "tn": m.tn,
-            "fn": m.fn,
-            "recall": round(m.recall, 3),
-            "precision": round(m.precision, 3),
-            "f1": round(m.f1, 3),
+            "tp": matrix.tp,
+            "fp": matrix.fp,
+            "tn": matrix.tn,
+            "fn": matrix.fn,
+            "recall": _handle_matrix_nan(matrix.recall, 3),
+            "precision": _handle_matrix_nan(matrix.precision, 3),
+            "f1": _handle_matrix_nan(matrix.f1, 3),
+            "specificity": _handle_matrix_nan(matrix.specificity, 3),
+            "false_positive_rate": _handle_matrix_nan(matrix.false_positive_rate, 3),
         }
         print(
-            f"  {tier:<14}  {len(rows):>2}  {m.tp:>2}  {m.fp:>2}  {m.tn:>2}  {m.fn:>2}  {m.recall:>6.3f}  {m.precision:>9.3f}  {m.f1:>5.3f}"
+            f"  {tier:<14}  {len(rows):>2}  {matrix.tp:>2}  {matrix.fp:>2}  {matrix.tn:>2}  {matrix.fn:>2}  {matrix.recall:>6.3f}  {matrix.precision:>9.3f}  {matrix.f1:>5.3f}  {matrix.specificity:>11.3f}  {matrix.false_positive_rate:>19.3f}"
         )
+
     return tier_results
 
 
 def save_report(
     model: str,
     predictions: list,
-    m,
+    matrix,
     stability: list | None = None,
     agreement_threshold: float = 0.8,
     tier_results: dict | None = None,
@@ -88,12 +96,14 @@ def save_report(
         "model": model,
         "dataset": "toxicity_v1",
         "predictions": predictions,
-        "confusion_matrix": {"tp": m.tp, "fp": m.fp, "tn": m.tn, "fn": m.fn},
+        "confusion_matrix": {"tp": matrix.tp, "fp": matrix.fp, "tn": matrix.tn, "fn": matrix.fn},
         "metrics": {
-            "accuracy": round(m.accuracy, 4),
-            "precision": round(m.precision, 4),
-            "recall": round(m.recall, 4),
-            "f1": round(m.f1, 4),
+            "accuracy": _handle_matrix_nan(matrix.accuracy, 4),
+            "precision": _handle_matrix_nan(matrix.precision, 4),
+            "recall": _handle_matrix_nan(matrix.recall, 4),
+            "f1": _handle_matrix_nan(matrix.f1, 4),
+            "specificity": _handle_matrix_nan(matrix.specificity, 4),
+            "false_positive_rate": _handle_matrix_nan(matrix.false_positive_rate, 4),
         },
     }
 
@@ -167,6 +177,8 @@ def main():
                 extra=unstable_flag,
             )
     else:
+        # Predictions - a list of the model predictions:
+        # [{'id': '1', 'text': "I hope you fail, you're useless.", 'gold': 'toxic', 'tier': 'clear_toxic', 'pred': 'toxic', 'confidence': 1.0} ... ]
         predictions = []
         for row in DATASET:
             pred_label, conf = classify_with_dual_prompt(client, row["text"], model=model)
@@ -174,19 +186,19 @@ def main():
             predictions.append(out)
             print_row(row["id"], row.get("tier", ""), row["gold"], pred_label, f"conf={conf:.2f}")
 
-    m = confusion_from_predictions(predictions, positive_label="toxic")
+    matrix = confusion_from_predictions(predictions, positive_label="toxic")
 
     fn_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "FN"]
     fp_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "FP"]
 
     print("\n--- Confusion matrix ---")
-    print(f"  TP={m.tp}  FP={m.fp}  TN={m.tn}  FN={m.fn}")
+    print(f"  TP={matrix.tp}  FP={matrix.fp}  TN={matrix.tn}  FN={matrix.fn}")
 
     print("\n--- Metrics ---")
-    print(f"  Accuracy : {m.accuracy:.3f}")
-    print(f"  Precision: {m.precision:.3f}")
-    print(f"  Recall   : {m.recall:.3f}")
-    print(f"  F1       : {m.f1:.3f}")
+    print(f"  Accuracy : {matrix.accuracy:.3f}")
+    print(f"  Precision: {matrix.precision:.3f}")
+    print(f"  Recall   : {matrix.recall:.3f}")
+    print(f"  F1       : {matrix.f1:.3f}")
 
     if fn_rows:
         print(f"\n--- False Negatives ({len(fn_rows)}) — toxic missed as safe ---")
@@ -216,7 +228,7 @@ def main():
             print(f"  [{s.id:>2}]  agreement={s.agreement_rate:.0%}  runs={s.predictions}")
             print(f'       "{s.text[:70]}"')
 
-    report_path = save_report(model, predictions, m, stability, agreement_threshold, tier_results)
+    report_path = save_report(model, predictions, matrix, stability, agreement_threshold, tier_results)
     print(f"\nReport saved: {report_path}")
 
 
