@@ -22,6 +22,12 @@ The framework tracks four things per run:
 
 **F1** is the balance between those two. It's the number to watch when precision and recall are in tension — which they almost always are.
 
+**Specificity** is the safe-side mirror of recall. Where recall asks "how many toxic texts did we catch?", specificity asks "of all the actually safe texts, how many did we correctly leave alone?" Low specificity means the model keeps flagging safe content — lots of unnecessary friction for users who did nothing wrong.
+
+**False Positive Rate** is `1 - specificity`, framed as an error instead of a success. The same information, different emphasis. You'd quote specificity when reporting how well the system respects safe content; you'd quote FPR when you want to highlight how often it gets it wrong.
+
+The core tension in content moderation: pushing recall up almost always pushes FPR up too. A model that catches more toxic content will also catch more safe content in the crossfire. There's no free lunch — you pick a threshold that fits your tolerance for each kind of mistake.
+
 ## The dataset
 
 Twenty examples, split into tiers by how hard they are:
@@ -128,29 +134,29 @@ That turns out to be surprisingly rare.
 │  DATASET[]       │  │ classify_with_llm()           │   │ run_stability_analysis() │
 │  LABELS[]        │  │ classify_with_dual_prompt()   │   │                          │
 └────────┬─────────┘  └───────┬───────────────────────┘   └───────────┬──────────────┘
-         │                    │                             │
-         │  20 labeled rows   │  → (label, conf)            │
-         │                    │                             │
-         └──────────┬─────────┘                             │
-                    │                                       │
-                    ▼                                       │
-     ┌──────────────────────────┐                           │
-     │  IF n_runs == 1                    │               │
-     │  (single eval mode)               │               │
-     │                                   │               │
-     │  for row in DATASET:              │               │
-     │    classify_with_dual_prompt()    │               │
-     │      PROMPT_STRICT → label_a      │               │
-     │      PROMPT_LENIENT → label_b     │               │
-     │      agree  → (label, mean_conf)  │               │
-     │      differ → ("needs_review", 0) │               │
-     │    → predictions[]                │               │
-     └──────────┬────────────────────────┘               │
-                │                                           │
-                │         IF n_runs > 1                     │
-                │         (stability mode)                  │
-                │                                           │
-                │    DATASET ───────────────────────────────┘
+         │                    │                                       │
+         │  20 labeled rows   │  → (label, conf)                      │
+         │                    │                                       │
+         └──────────┬─────────┘                                       │
+                    │                                                 │
+                    ▼                                                 │
+     ┌───────────────────────────────────┐                            │
+     │  IF n_runs == 1                   │                            │
+     │  (single eval mode)               │                            │
+     │                                   │                            │
+     │  for row in DATASET:              │                            │
+     │    classify_with_dual_prompt()    │                            │
+     │      PROMPT_STRICT → label_a      │                            │
+     │      PROMPT_LENIENT → label_b     │                            │
+     │      agree  → (label, mean_conf)  │                            │
+     │      differ → ("needs_review", 0) │                            │
+     │    → predictions[]                │                            │
+     └──────────┬────────────────────────┘                            │
+                │                                                     │
+                │         IF n_runs > 1                               │
+                │         (stability mode)                            │
+                │                                                     │
+                │    DATASET ─────────────────────────────────────────┘
                 │                    │
                 │                    │  classify_fn = lambda text:
                 │                    │    classify_with_llm(client, text,
@@ -196,9 +202,9 @@ That turns out to be surprisingly rare.
           │ .precision │
           │ .recall    │
           │ .f1        │
-          └────┬───────┘
-               │
-               ▼
+          └─────┬──────┘
+                │
+                ▼
         save_report()
         ┌─────────────────────────────────┐
         │ reports/                        │
