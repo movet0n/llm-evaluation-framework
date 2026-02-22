@@ -42,10 +42,13 @@ def print_tier_breakdown(predictions: list) -> dict:
         f"  {'tier':<14}  {'n':>2}  {'TP':>2}  {'FP':>2}  {'TN':>2}  {'FN':>2}  {'recall':>6}  {'precision':>9}  {'f1':>5}"
     )
     tier_results = {}
+
+    # Iterate through all the tiers ("toxic", "borderline" ... )
     for tier in TIER_ORDER:
         rows = [p for p in predictions if p.get("tier") == tier]
         if not rows:
             continue
+
         m = confusion_from_predictions(rows, positive_label="toxic")
         tier_results[tier] = {
             "n": len(rows),
@@ -133,6 +136,7 @@ def main():
     if n_runs > 1:
         print(f"Stability mode: {n_runs} runs per sample (agreement threshold={agreement_threshold:.0%})\n")
         stability_temp = float(os.getenv("EVAL_STABILITY_TEMPERATURE", "0.0"))
+
         classify_fn = lambda text: classify_with_llm(client, text, model=model, temperature=stability_temp)
         stability = run_stability_analysis(
             DATASET,
@@ -141,6 +145,8 @@ def main():
             agreement_threshold=agreement_threshold,
         )
 
+        # Predictions - a list of the model predictions:
+        # [{'id': '1', 'text': "I hope you fail, you're useless.", 'gold': 'toxic', 'tier': 'clear_toxic', 'pred': 'toxic', 'confidence': 1.0} ... ]
         predictions = []
         for s in stability:
             row = next(r for r in DATASET if r["id"] == s.id)

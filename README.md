@@ -94,3 +94,104 @@ reports/         — output from each run (gitignored)
 Testing one model on one task and understanding exactly where and how it fails. Not a benchmark suite, not a leaderboard — just a clear, honest measurement of whether the model does what you want it to do.
 
 That turns out to be surprisingly rare.
+
+## Architecture Diagram
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  python -m runners.eval_llm_classifier                              │
+│                         main()                                      │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ reads env vars
+                               │ OLLAMA_MODEL, EVAL_RUNS,
+                               │ EVAL_AGREEMENT_THRESHOLD,
+                               │ EVAL_STABILITY_TEMPERATURE
+                               │
+          ┌────────────────────┼───────────────────────────┐
+          │                    │                           │
+          ▼                    ▼                           ▼
+┌──────────────────┐  ┌─────────────────────┐   ┌──────────────────────────┐
+│ datasets/        │  │ evaluators/         │   │ evaluators/              │
+│ toxicity_v1.py   │  │ classifier.py       │   │ stability.py             │
+│                  │  │                     │   │                          │
+│  DATASET[]       │  │ classify_with_llm() │   │ run_stability_analysis() │
+│  LABELS[]        │  │                     │   │                          │
+└────────┬─────────┘  └───────┬─────────────┘   └───────────┬──────────────┘
+         │                    │                             │
+         │  20 labeled rows   │  → (label, conf)            │
+         │                    │                             │
+         └──────────┬─────────┘                             │
+                    │                                       │
+                    ▼                                       │
+     ┌──────────────────────────┐                           │
+     │  IF n_runs == 1          │                           │
+     │  (single eval mode)      │                           │
+     │                          │                           │
+     │  for row in DATASET:     │                           │
+     │    classify_with_llm()   │                           │
+     │    → predictions[]       │                           │
+     └──────────┬───────────────┘                           │
+                │                                           │
+                │         IF n_runs > 1                     │
+                │         (stability mode)                  │
+                │                                           │
+                │    DATASET ───────────────────────────────┘
+                │                    │
+                │                    │  classify_fn = lambda text:
+                │                    │    classify_with_llm(client, text,
+                │                    │      model, temperature=0.7)
+                │                    │
+                │                    ▼
+                │         run_stability_analysis(
+                │           DATASET, classify_fn, n_runs=5
+                │         )
+                │           │
+                │           │  for each sample:
+                │           │    runs classify_fn × n_runs
+                │           │    → [SampleStability]
+                │           │       .majority_label
+                │           │       .agreement_rate
+                │           │       .mean_confidence
+                │           │       .std_confidence
+                │           │       .unstable
+                │           │
+                │           └──→ predictions[] (derived from majority_label)
+                │
+                ▼
+     ┌───────────────────────────────────────────────┐
+     │  predictions[]  (from either path above)      │
+     │  [{ id, text, gold, tier, pred, conf }, ...]  │
+     └──────────────┬────────────────────────────────┘
+                    │
+          ┌─────────┼──────────────┐
+          │         │              │
+          ▼         ▼              ▼
+   outcome()   confusion_      print_tier_
+   per row     from_           breakdown()
+   → TP/FP/    predictions()   │
+     TN/FN     │               │  for each tier:
+               │               │    confusion_from_
+               ▼               │    predictions()
+          ┌────────────┐       │    → Metrics
+          │ Metrics    │       │
+          │ .tp .fp    │       └──→ tier_results{}
+          │ .tn .fn    │
+          │            │
+          │ .accuracy  │
+          │ .precision │
+          │ .recall    │
+          │ .f1        │
+          └────┬───────┘
+               │
+               ▼
+        save_report()
+        ┌─────────────────────────────────┐
+        │ reports/                        │
+        │ 20250222T143021Z_llama3.2.json  │
+        │ {                               │
+        │   predictions[],                │
+        │   confusion_matrix{},           │
+        │   metrics{},                    │
+        │   tier_metrics{},               │
+        │   stability{}  (if n_runs > 1)  │
+        │ }                               │
+        └─────────────────────────────────┘

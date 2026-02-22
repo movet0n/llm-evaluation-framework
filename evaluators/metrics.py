@@ -35,6 +35,8 @@ def confusion_from_predictions(rows: List[Dict], positive_label: str = "toxic") 
     for r in rows:
         gold_pos = r["gold"] == positive_label
         pred_pos = r["pred"] == positive_label
+
+        # Here we simply add all the predictions to the Metrics dataclass
         if gold_pos and pred_pos:
             tp += 1
         elif (not gold_pos) and pred_pos:
@@ -43,4 +45,5 @@ def confusion_from_predictions(rows: List[Dict], positive_label: str = "toxic") 
             tn += 1
         elif gold_pos and (not pred_pos):
             fn += 1
+
     return Metrics(tp=tp, fp=fp, tn=tn, fn=fn)
