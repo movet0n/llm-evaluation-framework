@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from datasets.toxicity_v1 import DATASET
-from evaluators.classifier import classify_with_llm
+from evaluators.classifier import classify_with_dual_prompt, classify_with_llm
 from evaluators.metrics import confusion_from_predictions
 from evaluators.stability import overall_instability, run_stability_analysis
 
@@ -18,6 +18,9 @@ TIER_ORDER = ["clear_toxic", "mostly_toxic", "borderline", "mostly_safe", "clear
 
 
 def outcome(gold: str, pred: str, positive: str = "toxic") -> str:
+    if pred == "needs_review":
+        return "NR"
+
     gold_pos = gold == positive
     pred_pos = pred == positive
     if gold_pos and pred_pos:
@@ -26,6 +29,7 @@ def outcome(gold: str, pred: str, positive: str = "toxic") -> str:
         return "TN"
     if not gold_pos and pred_pos:
         return "FP"
+
     return "FN"  # gold_pos and not pred_pos — missed toxic
 
 
@@ -33,7 +37,8 @@ def print_row(id: str, tier: str, gold: str, pred: str, conf: str, extra: str = 
     label = outcome(gold, pred)
     marker = " <-- MISSED TOXIC" if label == "FN" else ""
     marker = " <-- FALSE ALARM" if label == "FP" else marker
-    print(f"  {id:>2}  [{tier:<12}]  gold={gold:<5}  pred={pred:<5}  {conf}  {label}{marker}{extra}")
+    marker = " <-- NEEDS REVIEW" if label == "NR" else marker
+    print(f"  {id:>2}  [{tier:<12}]  gold={gold:<5}  pred={pred:<13}  {conf}  {label}{marker}{extra}")
 
 
 def print_tier_breakdown(predictions: list) -> dict:
@@ -164,7 +169,7 @@ def main():
     else:
         predictions = []
         for row in DATASET:
-            pred_label, conf = classify_with_llm(client, row["text"], model=model)
+            pred_label, conf = classify_with_dual_prompt(client, row["text"], model=model)
             out = {**row, "pred": pred_label, "confidence": conf}
             predictions.append(out)
             print_row(row["id"], row.get("tier", ""), row["gold"], pred_label, f"conf={conf:.2f}")
@@ -192,6 +197,12 @@ def main():
         print(f"\n--- False Positives ({len(fp_rows)}) — safe flagged as toxic ---")
         for p in fp_rows:
             print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
+
+    nr_rows = [p for p in predictions if p["pred"] == "needs_review"]
+    if nr_rows:
+        print(f"\n--- Needs Review ({len(nr_rows)}) — strict and lenient prompts disagreed ---")
+        for p in nr_rows:
+            print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  gold={p['gold']:<5}  \"{p['text'][:70]}\"")
 
     tier_results = print_tier_breakdown(predictions)
 

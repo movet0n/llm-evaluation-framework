@@ -44,6 +44,18 @@ For strong models at low temperature, this correlates reasonably with correctnes
 
 The real confidence a model has lives in something called logprobs — the actual probability it assigned to each token at generation time. That's a true internal measurement. But it requires lower-level API access and is harder to work with, so most evaluation pipelines, including this one, use prompted self-assessment instead and take the numbers with appropriate skepticism.
 
+## Dual-prompt classification and needs_review
+
+Single-run mode doesn't just ask the model once. It asks twice — with two different system prompts — and only commits to a label if both agree.
+
+The first prompt is strict: classify this text as toxic or safe, no hedging. The second is more lenient: give the text benefit of the doubt where reasonable. Both run at temperature 0, so they're fully deterministic. The only source of disagreement is the framing.
+
+If they agree, that label is the result, and confidence is the average of both scores. If they disagree, the sample is marked `needs_review` — the model has told you, in the most honest way possible, that it doesn't have a clear answer.
+
+This is different from stability analysis, which measures variability across multiple runs of the same prompt at higher temperature. Dual-prompt disagreement is about framing sensitivity: the model's answer changes depending on how you ask the question. Both are real signals about where the model is uncertain, just from different angles.
+
+`needs_review` samples appear in their own section in the output and are excluded from the binary TP/FP/TN/FN counts — they didn't make a call, so they're not scored as right or wrong.
+
 ## Stability analysis
 
 LLMs are probabilistic. Run the same text through the same model twice and you might get different answers — especially on ambiguous cases. The stability analysis runs each sample multiple times and measures how often the model changes its mind.
@@ -109,13 +121,13 @@ That turns out to be surprisingly rare.
           ┌────────────────────┼───────────────────────────┐
           │                    │                           │
           ▼                    ▼                           ▼
-┌──────────────────┐  ┌─────────────────────┐   ┌──────────────────────────┐
-│ datasets/        │  │ evaluators/         │   │ evaluators/              │
-│ toxicity_v1.py   │  │ classifier.py       │   │ stability.py             │
-│                  │  │                     │   │                          │
-│  DATASET[]       │  │ classify_with_llm() │   │ run_stability_analysis() │
-│  LABELS[]        │  │                     │   │                          │
-└────────┬─────────┘  └───────┬─────────────┘   └───────────┬──────────────┘
+┌──────────────────┐  ┌───────────────────────────────┐   ┌──────────────────────────┐
+│ datasets/        │  │ evaluators/                   │   │ evaluators/              │
+│ toxicity_v1.py   │  │ classifier.py                 │   │ stability.py             │
+│                  │  │                               │   │                          │
+│  DATASET[]       │  │ classify_with_llm()           │   │ run_stability_analysis() │
+│  LABELS[]        │  │ classify_with_dual_prompt()   │   │                          │
+└────────┬─────────┘  └───────┬───────────────────────┘   └───────────┬──────────────┘
          │                    │                             │
          │  20 labeled rows   │  → (label, conf)            │
          │                    │                             │
@@ -123,13 +135,17 @@ That turns out to be surprisingly rare.
                     │                                       │
                     ▼                                       │
      ┌──────────────────────────┐                           │
-     │  IF n_runs == 1          │                           │
-     │  (single eval mode)      │                           │
-     │                          │                           │
-     │  for row in DATASET:     │                           │
-     │    classify_with_llm()   │                           │
-     │    → predictions[]       │                           │
-     └──────────┬───────────────┘                           │
+     │  IF n_runs == 1                    │               │
+     │  (single eval mode)               │               │
+     │                                   │               │
+     │  for row in DATASET:              │               │
+     │    classify_with_dual_prompt()    │               │
+     │      PROMPT_STRICT → label_a      │               │
+     │      PROMPT_LENIENT → label_b     │               │
+     │      agree  → (label, mean_conf)  │               │
+     │      differ → ("needs_review", 0) │               │
+     │    → predictions[]                │               │
+     └──────────┬────────────────────────┘               │
                 │                                           │
                 │         IF n_runs > 1                     │
                 │         (stability mode)                  │
@@ -168,7 +184,7 @@ That turns out to be surprisingly rare.
    outcome()   confusion_      print_tier_
    per row     from_           breakdown()
    → TP/FP/    predictions()   │
-     TN/FN     │               │  for each tier:
+     TN/FN/NR  │               │  for each tier:
                │               │    confusion_from_
                ▼               │    predictions()
           ┌────────────┐       │    → Metrics
