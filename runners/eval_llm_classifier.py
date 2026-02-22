@@ -14,6 +14,7 @@ from evaluators.stability import overall_instability, run_stability_analysis
 load_dotenv()
 
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
+TIER_ORDER = ["clear_toxic", "mostly_toxic", "borderline", "mostly_safe", "clear_safe"]
 
 
 def outcome(gold: str, pred: str, positive: str = "toxic") -> str:
@@ -35,8 +36,40 @@ def print_row(id: str, tier: str, gold: str, pred: str, conf: str, extra: str = 
     print(f"  {id:>2}  [{tier:<12}]  gold={gold:<5}  pred={pred:<5}  {conf}  {label}{marker}{extra}")
 
 
+def print_tier_breakdown(predictions: list) -> dict:
+    print("\n--- Per-tier breakdown ---")
+    print(
+        f"  {'tier':<14}  {'n':>2}  {'TP':>2}  {'FP':>2}  {'TN':>2}  {'FN':>2}  {'recall':>6}  {'precision':>9}  {'f1':>5}"
+    )
+    tier_results = {}
+    for tier in TIER_ORDER:
+        rows = [p for p in predictions if p.get("tier") == tier]
+        if not rows:
+            continue
+        m = confusion_from_predictions(rows, positive_label="toxic")
+        tier_results[tier] = {
+            "n": len(rows),
+            "tp": m.tp,
+            "fp": m.fp,
+            "tn": m.tn,
+            "fn": m.fn,
+            "recall": round(m.recall, 3),
+            "precision": round(m.precision, 3),
+            "f1": round(m.f1, 3),
+        }
+        print(
+            f"  {tier:<14}  {len(rows):>2}  {m.tp:>2}  {m.fp:>2}  {m.tn:>2}  {m.fn:>2}  {m.recall:>6.3f}  {m.precision:>9.3f}  {m.f1:>5.3f}"
+        )
+    return tier_results
+
+
 def save_report(
-    model: str, predictions: list, m, stability: list | None = None, agreement_threshold: float = 0.8
+    model: str,
+    predictions: list,
+    m,
+    stability: list | None = None,
+    agreement_threshold: float = 0.8,
+    tier_results: dict | None = None,
 ) -> Path:
     REPORTS_DIR.mkdir(exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -55,6 +88,9 @@ def save_report(
             "f1": round(m.f1, 4),
         },
     }
+
+    if tier_results is not None:
+        report["tier_metrics"] = tier_results
 
     if stability is not None:
         report["stability"] = {
@@ -151,6 +187,8 @@ def main():
         for p in fp_rows:
             print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
 
+    tier_results = print_tier_breakdown(predictions)
+
     if stability:
         unstable = [s for s in stability if s.unstable]
         instability_pct = overall_instability(stability, agreement_threshold)
@@ -161,7 +199,7 @@ def main():
             print(f"  [{s.id:>2}]  agreement={s.agreement_rate:.0%}  runs={s.predictions}")
             print(f'       "{s.text[:70]}"')
 
-    report_path = save_report(model, predictions, m, stability, agreement_threshold)
+    report_path = save_report(model, predictions, m, stability, agreement_threshold, tier_results)
     print(f"\nReport saved: {report_path}")
 
 
