@@ -124,9 +124,9 @@ That turns out to be surprisingly rare.
                                │ EVAL_AGREEMENT_THRESHOLD,
                                │ EVAL_STABILITY_TEMPERATURE
                                │
-          ┌────────────────────┼───────────────────────────┐
-          │                    │                           │
-          ▼                    ▼                           ▼
+          ┌────────────────────┼──────────────────────────────────────┐
+          │                    │                                      │
+          ▼                    ▼                                      ▼
 ┌──────────────────┐  ┌───────────────────────────────┐   ┌──────────────────────────┐
 │ datasets/        │  │ evaluators/                   │   │ evaluators/              │
 │ toxicity_v1.py   │  │ classifier.py                 │   │ stability.py             │

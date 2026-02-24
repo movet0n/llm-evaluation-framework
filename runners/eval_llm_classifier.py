@@ -23,10 +23,11 @@ def _handle_matrix_nan(value: float, round_precision: int) -> float | None:
 
 
 def outcome(gold: str, pred: str, positive: str = "toxic") -> str:
-    if pred == "needs_review":
-        return "NR"
-
     gold_pos = gold == positive
+
+    if pred == "needs_review":
+        return "NR_toxic" if gold_pos else "NR_safe"
+
     pred_pos = pred == positive
     if gold_pos and pred_pos:
         return "TP"
@@ -42,7 +43,8 @@ def print_row(id: str, tier: str, gold: str, pred: str, conf: str, extra: str = 
     label = outcome(gold, pred)
     marker = " <-- MISSED TOXIC" if label == "FN" else ""
     marker = " <-- FALSE ALARM" if label == "FP" else marker
-    marker = " <-- NEEDS REVIEW" if label == "NR" else marker
+    marker = " <-- NEEDS REVIEW (gold: toxic)" if label == "NR_toxic" else marker
+    marker = " <-- NEEDS REVIEW (gold: safe)" if label == "NR_safe" else marker
     print(f"  {id:>2}  [{tier:<12}]  gold={gold:<5}  pred={pred:<13}  {conf}  {label}{marker}{extra}")
 
 
@@ -210,11 +212,18 @@ def main():
         for p in fp_rows:
             print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
 
-    nr_rows = [p for p in predictions if p["pred"] == "needs_review"]
-    if nr_rows:
-        print(f"\n--- Needs Review ({len(nr_rows)}) — strict and lenient prompts disagreed ---")
-        for p in nr_rows:
-            print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  gold={p['gold']:<5}  \"{p['text'][:70]}\"")
+    nr_toxic_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_toxic"]
+    nr_safe_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_safe"]
+
+    if nr_toxic_rows:
+        print(f"\n--- Needs Review: uncertain on toxic ({len(nr_toxic_rows)}) — model hedged on actually-toxic content ---")
+        for p in nr_toxic_rows:
+            print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
+
+    if nr_safe_rows:
+        print(f"\n--- Needs Review: uncertain on safe ({len(nr_safe_rows)}) — model unnecessarily hesitant ---")
+        for p in nr_safe_rows:
+            print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
 
     tier_results = print_tier_breakdown(predictions)
 
