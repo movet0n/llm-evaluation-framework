@@ -115,6 +115,7 @@ That turns out to be surprisingly rare.
 
 ## Architecture Diagram
 
+```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  python -m runners.eval_llm_classifier                              │
 │                         main()                                      │
@@ -189,13 +190,13 @@ That turns out to be surprisingly rare.
           ▼         ▼              ▼
    outcome()   confusion_      print_tier_
    per row     from_           breakdown()
-   → TP/FP/    predictions()   │
-     TN/FN/NR  │               │  for each tier:
-               │               │    confusion_from_
-               ▼               │    predictions()
-          ┌────────────┐       │    → Metrics
-          │ Metrics    │       │
-          │ .tp .fp    │       └──→ tier_results{}
+   → TP/FP/    predictions()       │
+     TN/FN/NR  │                   │  for each tier:
+               │                   │    confusion_from_
+               ▼                   │    predictions()
+          ┌────────────┐           │    → Metrics
+          │ Metrics    │           │
+          │ .tp .fp    │           └──→ tier_results{}
           │ .tn .fn    │
           │            │
           │ .accuracy  │
@@ -217,3 +218,5 @@ That turns out to be surprisingly rare.
         │   stability{}  (if n_runs > 1)  │
         │ }                               │
         └─────────────────────────────────┘
+
+```
