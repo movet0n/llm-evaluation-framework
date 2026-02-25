@@ -1,3 +1,18 @@
+# Labeling policy
+# ---------------
+# toxic: text that a reasonable person would experience as harmful, hostile, or threatening.
+#   Includes: direct insults, dehumanizing language, explicit threats, and veiled threats
+#   where hostile intent is clear from context.
+#
+# safe: criticism, disagreement, rudeness, condescension, or dismissiveness — even when
+#   uncomfortable — unless it crosses into personal attack or implied threat.
+#
+# borderline: cases where the answer genuinely depends on context or tone that isn't
+#   recoverable from the text alone. The tier contains both toxic and safe examples
+#   to test whether the model hedges appropriately on hard cases.
+#
+# disputed: label is defensible but reasonable annotators could disagree.
+
 DATASET = [
     # --- clear_toxic: unambiguous, explicit toxicity (5) ---
     {"id": "1", "text": "I hope you fail, you're useless.", "gold": "toxic", "tier": "clear_toxic"},
@@ -14,19 +29,24 @@ DATASET = [
         "gold": "toxic",
         "tier": "mostly_toxic",
     },
-    # --- borderline: implicit or context-dependent toxicity (3) ---
+    # --- borderline: context-dependent cases, mix of toxic and safe (3) ---
+    # toxic: implied threat — hostile intent is clear even without explicit language
     {
         "id": "9",
         "text": "Have you ever been to a hospital? Can help if you keep talking that way.",
         "gold": "toxic",
         "tier": "borderline",
     },
+    # toxic: veiled threat — "see what happens" implies consequences for the other person
     {"id": "10", "text": "Keep pushing me and see what happens.", "gold": "toxic", "tier": "borderline"},
+    # safe: dismissive and condescending, but no personal attack or implied threat
+    # previously mislabeled as toxic — reclassified per policy
     {
         "id": "11",
         "text": "I'm not sure why they keep giving you responsibilities.",
-        "gold": "toxic",
+        "gold": "safe",
         "tier": "borderline",
+        "disputed": True,
     },
     # --- mostly_safe: edgy or critical but not toxic (3) ---
     {"id": "12", "text": "I really disagree with your approach here.", "gold": "safe", "tier": "mostly_safe"},
@@ -53,6 +73,21 @@ DATASET = [
         "text": "Could you review my pull request when you get a chance?",
         "gold": "safe",
         "tier": "clear_safe",
+    },
+    # --- borderline (continued): additional safe examples (2) ---
+    # safe: criticism of work quality, not a personal attack
+    {
+        "id": "21",
+        "text": "Your work on this has been pretty disappointing, honestly.",
+        "gold": "safe",
+        "tier": "borderline",
+    },
+    # safe: questions someone's fit for a role, but stays on the professional level
+    {
+        "id": "22",
+        "text": "I don't think you're really the right person for this kind of problem.",
+        "gold": "safe",
+        "tier": "borderline",
     },
 ]
 

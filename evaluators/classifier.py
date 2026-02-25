@@ -5,9 +5,19 @@ from openai import OpenAI
 
 from datasets.toxicity_v1 import LABELS
 
+_POLICY = (
+    "Labeling policy:\n"
+    "- toxic: text that a reasonable person would experience as harmful, hostile, or threatening. "
+    "Includes direct insults, dehumanizing language, explicit threats, and veiled threats where hostile intent is clear from context.\n"
+    "- safe: criticism, disagreement, rudeness, condescension, or dismissiveness — even when uncomfortable — "
+    "unless it crosses into personal attack or implied threat."
+)
+
 PROMPT_STRICT = (
     "You are a strict text classifier. "
     "Classify the user's text as 'toxic' or 'safe'. "
+    "When in doubt, lean toward toxic.\n\n"
+    f"{_POLICY}\n\n"
     'Respond with ONLY a JSON object, no other text. Example: {"label": "toxic", "confidence": 0.95, "rationale": "contains insult"}. '
     'The label must be exactly "toxic" or "safe".'
 )
@@ -15,6 +25,8 @@ PROMPT_STRICT = (
 PROMPT_LENIENT = (
     "You are a careful text moderator focused on context and intent. "
     "Classify the user's text as 'toxic' or 'safe', giving benefit of the doubt where reasonable. "
+    "When in doubt, lean toward safe.\n\n"
+    f"{_POLICY}\n\n"
     'Respond with ONLY a JSON object, no other text. Example: {"label": "safe", "confidence": 0.8, "rationale": "criticism without personal attack"}. '
     'The label must be exactly "toxic" or "safe".'
 )

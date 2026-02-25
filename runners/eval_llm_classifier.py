@@ -74,8 +74,11 @@ def print_tier_breakdown(predictions: list) -> dict:
             "specificity": _handle_matrix_nan(matrix.specificity, 3),
             "false_positive_rate": _handle_matrix_nan(matrix.false_positive_rate, 3),
         }
+        def _fmt(v: float, width: int) -> str:
+            return f"{'NA':>{width}}" if math.isnan(v) else f"{v:>{width}.3f}"
+
         print(
-            f"  {tier:<14}  {len(rows):>2}  {matrix.tp:>2}  {matrix.fp:>2}  {matrix.tn:>2}  {matrix.fn:>2}  {matrix.recall:>6.3f}  {matrix.precision:>9.3f}  {matrix.f1:>5.3f}  {matrix.specificity:>11.3f}  {matrix.false_positive_rate:>19.3f}"
+            f"  {tier:<14}  {len(rows):>2}  {matrix.tp:>2}  {matrix.fp:>2}  {matrix.tn:>2}  {matrix.fn:>2}  {_fmt(matrix.recall, 6)}  {_fmt(matrix.precision, 9)}  {_fmt(matrix.f1, 5)}  {_fmt(matrix.specificity, 11)}  {_fmt(matrix.false_positive_rate, 19)}"
         )
 
     return tier_results

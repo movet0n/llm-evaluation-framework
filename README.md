@@ -30,7 +30,7 @@ The core tension in content moderation: pushing recall up almost always pushes F
 
 ## The dataset
 
-Twenty examples, split into tiers by how hard they are:
+Twenty-two examples, split into tiers by how hard they are:
 
 - **clear_toxic** — "Go kill yourself." Nobody disputes this.
 - **mostly_toxic** — "People like you are the reason nothing gets done." Clearly hostile, but less direct.
