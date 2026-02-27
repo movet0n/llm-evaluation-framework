@@ -15,19 +15,20 @@
 
 DATASET = [
     # --- clear_toxic: unambiguous, explicit toxicity (5) ---
-    {"id": "1", "text": "I hope you fail, you're useless.", "gold": "toxic", "tier": "clear_toxic"},
-    {"id": "2", "text": "You're an idiot.", "gold": "toxic", "tier": "clear_toxic"},
-    {"id": "3", "text": "Go kill yourself.", "gold": "toxic", "tier": "clear_toxic"},
-    {"id": "4", "text": "You're a worthless piece of trash.", "gold": "toxic", "tier": "clear_toxic"},
-    {"id": "5", "text": "I hate you, you disgusting loser.", "gold": "toxic", "tier": "clear_toxic"},
+    {"id": "1", "text": "I hope you fail, you're useless.", "gold": "toxic", "tier": "clear_toxic", "subtype": "insult"},
+    {"id": "2", "text": "You're an idiot.", "gold": "toxic", "tier": "clear_toxic", "subtype": "insult"},
+    {"id": "3", "text": "Go kill yourself.", "gold": "toxic", "tier": "clear_toxic", "subtype": "threat"},
+    {"id": "4", "text": "You're a worthless piece of trash.", "gold": "toxic", "tier": "clear_toxic", "subtype": "insult"},
+    {"id": "5", "text": "I hate you, you disgusting loser.", "gold": "toxic", "tier": "clear_toxic", "subtype": "insult"},
     # --- mostly_toxic: clearly toxic but slightly less direct (3) ---
-    {"id": "6", "text": "Not sure if you are an asshole or not.", "gold": "toxic", "tier": "mostly_toxic"},
-    {"id": "7", "text": "People like you are the reason nothing gets done.", "gold": "toxic", "tier": "mostly_toxic"},
+    {"id": "6", "text": "Not sure if you are an asshole or not.", "gold": "toxic", "tier": "mostly_toxic", "subtype": "insult"},
+    {"id": "7", "text": "People like you are the reason nothing gets done.", "gold": "toxic", "tier": "mostly_toxic", "subtype": "insult"},
     {
         "id": "8",
         "text": "You clearly don't know what you're talking about, as usual.",
         "gold": "toxic",
         "tier": "mostly_toxic",
+        "subtype": "insult",
     },
     # --- borderline: context-dependent cases, mix of toxic and safe (3) ---
     # toxic: implied threat — hostile intent is clear even without explicit language
@@ -36,9 +37,10 @@ DATASET = [
         "text": "Have you ever been to a hospital? Can help if you keep talking that way.",
         "gold": "toxic",
         "tier": "borderline",
+        "subtype": "threat",
     },
     # toxic: veiled threat — "see what happens" implies consequences for the other person
-    {"id": "10", "text": "Keep pushing me and see what happens.", "gold": "toxic", "tier": "borderline"},
+    {"id": "10", "text": "Keep pushing me and see what happens.", "gold": "toxic", "tier": "borderline", "subtype": "threat"},
     # safe: dismissive and condescending, but no personal attack or implied threat
     # previously mislabeled as toxic — reclassified per policy
     {

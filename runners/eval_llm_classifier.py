@@ -84,6 +84,25 @@ def print_tier_breakdown(predictions: list) -> dict:
     return tier_results
 
 
+def print_subtype_breakdown(predictions: list) -> None:
+    subtypes = sorted({p["subtype"] for p in predictions if p.get("subtype")})
+    if not subtypes:
+        return
+
+    print("\n--- Per-subtype recall (toxic examples only) ---")
+    print(f"  {'subtype':<8}  {'n':>2}  {'TP':>2}  {'NR':>2}  {'FN':>2}  {'auto_recall':>11}  {'capture_rate':>12}")
+
+    for subtype in subtypes:
+        rows = [p for p in predictions if p.get("subtype") == subtype]
+        n = len(rows)
+        tp = sum(1 for p in rows if outcome(p["gold"], p["pred"]) == "TP")
+        nr = sum(1 for p in rows if outcome(p["gold"], p["pred"]) == "NR_toxic")
+        fn = sum(1 for p in rows if outcome(p["gold"], p["pred"]) == "FN")
+        auto_recall = tp / n if n else float("nan")
+        capture_rate = (tp + nr) / n if n else float("nan")
+        print(f"  {subtype:<8}  {n:>2}  {tp:>2}  {nr:>2}  {fn:>2}  {auto_recall:>11.1%}  {capture_rate:>12.1%}")
+
+
 def save_report(
     model: str,
     predictions: list,
@@ -244,6 +263,7 @@ def main():
             print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
 
     tier_results = print_tier_breakdown(predictions)
+    print_subtype_breakdown(predictions)
 
     if stability:
         unstable = [s for s in stability if s.unstable]
