@@ -53,6 +53,9 @@ def confusion_from_predictions(
     tp = fp = tn = fn = 0
 
     for r in rows:
+        if r["pred"] == "needs_review":
+            continue  # excluded from automated metrics; counted separately in the runner
+
         gold_positive = r["gold"] == positive_label
         pred_positive = r["pred"] == positive_label
 

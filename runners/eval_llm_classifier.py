@@ -195,15 +195,29 @@ def main():
 
     fn_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "FN"]
     fp_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "FP"]
+    nr_toxic_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_toxic"]
+    nr_safe_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_safe"]
 
-    print("\n--- Confusion matrix ---")
+    print("\n--- Confusion matrix (automated-only, needs_review excluded) ---")
     print(f"  TP={matrix.tp}  FP={matrix.fp}  TN={matrix.tn}  FN={matrix.fn}")
+    print(f"  NR_toxic={len(nr_toxic_rows)}  NR_safe={len(nr_safe_rows)}  (routed to human review)")
 
-    print("\n--- Metrics ---")
+    print("\n--- Metrics (automated-only) ---")
     print(f"  Accuracy : {matrix.accuracy:.3f}")
     print(f"  Precision: {matrix.precision:.3f}")
     print(f"  Recall   : {matrix.recall:.3f}")
     print(f"  F1       : {matrix.f1:.3f}")
+
+    total = len(predictions)
+    automated = total - len(nr_toxic_rows) - len(nr_safe_rows)
+    assisted_tp = matrix.tp + len(nr_toxic_rows)
+    assisted_recall = assisted_tp / (assisted_tp + matrix.fn) if (assisted_tp + matrix.fn) else float("nan")
+    print("\n--- Assisted pipeline (human reviews all needs_review) ---")
+    print(f"  Automation rate : {automated / total:.0%}  ({automated}/{total} cases resolved without review)")
+    print(f"  Slip-throughs   : {matrix.fn}  (toxic the system called safe — actual misses)")
+    print(f"  Routed to review: {len(nr_toxic_rows)} toxic  +  {len(nr_safe_rows)} safe")
+    if not math.isnan(assisted_recall):
+        print(f"  Assisted recall : {assisted_recall:.3f}  (if reviewer catches all routed toxic)")
 
     if fn_rows:
         print(f"\n--- False Negatives ({len(fn_rows)}) — toxic missed as safe ---")
@@ -214,9 +228,6 @@ def main():
         print(f"\n--- False Positives ({len(fp_rows)}) — safe flagged as toxic ---")
         for p in fp_rows:
             print(f"  [{p['id']:>2}] [{p.get('tier', ''):12}]  \"{p['text'][:70]}\"")
-
-    nr_toxic_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_toxic"]
-    nr_safe_rows = [p for p in predictions if outcome(p["gold"], p["pred"]) == "NR_safe"]
 
     if nr_toxic_rows:
         print(f"\n--- Needs Review: uncertain on toxic ({len(nr_toxic_rows)}) — model hedged on actually-toxic content ---")
