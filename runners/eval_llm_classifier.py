@@ -209,15 +209,19 @@ def main():
     print(f"  F1       : {matrix.f1:.3f}")
 
     total = len(predictions)
-    automated = total - len(nr_toxic_rows) - len(nr_safe_rows)
-    assisted_tp = matrix.tp + len(nr_toxic_rows)
-    assisted_recall = assisted_tp / (assisted_tp + matrix.fn) if (assisted_tp + matrix.fn) else float("nan")
+    total_toxic = sum(1 for p in predictions if p["gold"] == "toxic")
+    fn_safe = matrix.fn  # toxic that the system called safe — actual slip-throughs
+    coverage_auto = (matrix.tp + matrix.tn + matrix.fp + fn_safe) / total if total else float("nan")
+    toxic_capture_rate = (matrix.tp + len(nr_toxic_rows)) / total_toxic if total_toxic else float("nan")
+    toxic_slip_rate = fn_safe / total_toxic if total_toxic else float("nan")
+
     print("\n--- Assisted pipeline (human reviews all needs_review) ---")
-    print(f"  Automation rate : {automated / total:.0%}  ({automated}/{total} cases resolved without review)")
-    print(f"  Slip-throughs   : {matrix.fn}  (toxic the system called safe — actual misses)")
-    print(f"  Routed to review: {len(nr_toxic_rows)} toxic  +  {len(nr_safe_rows)} safe")
-    if not math.isnan(assisted_recall):
-        print(f"  Assisted recall : {assisted_recall:.3f}  (if reviewer catches all routed toxic)")
+    print(f"  nr_toxic          : {len(nr_toxic_rows)}  (toxic routed to review)")
+    print(f"  nr_safe           : {len(nr_safe_rows)}  (safe routed to review)")
+    print(f"  fn_safe           : {fn_safe}  (toxic the system called safe — actual misses)")
+    print(f"  coverage_auto     : {coverage_auto:.1%}  (fraction resolved without human review)")
+    print(f"  toxic_capture_rate: {toxic_capture_rate:.1%}  (TP + nr_toxic) / total_toxic")
+    print(f"  toxic_slip_rate   : {toxic_slip_rate:.1%}  fn_safe / total_toxic")
 
     if fn_rows:
         print(f"\n--- False Negatives ({len(fn_rows)}) — toxic missed as safe ---")
